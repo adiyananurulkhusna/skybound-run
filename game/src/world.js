@@ -34,6 +34,14 @@ export function terrainHeight(x, z) {
   // Western ridge.
   const ridge = Math.max(0, 1 - Math.abs(x + 2350) / 1600);
   h += ridge * ridge * 290 * (0.7 + 0.3 * Math.sin(z * 0.0016));
+  // Snowy north-west peaks, tall enough to catch the light from the valley.
+  const peaks = Math.max(0, 1 - Math.hypot(x + 2700, z + 5400) / 1600);
+  h += peaks * peaks * 210 * (0.82 + 0.18 * Math.sin(z * 0.0021 + x * 0.0013));
+  // A winding river channel east of the field, cut below water level so it
+  // renders as a bright ribbon through the farmland.
+  const riverX = 980 + 520 * Math.sin(z * 0.00055 + 0.8);
+  const river = Math.max(0, 1 - Math.abs(x - riverX) / 190);
+  h -= river * river * 30;
   // Eastern lake basin.
   const lake = Math.max(0, 1 - Math.hypot(x - 2300, z + 3600) / 1700);
   h -= lake * lake * 46;
@@ -111,6 +119,21 @@ export class World {
       const z = 420 + range(random, -320, 320);
       this.blocks.push({ x, y: terrainHeight(x, z), z, w: range(random, 16, 34), h: range(random, 10, 38) });
     }
+    // Landmarks: wind turbines on the western ridge, a lighthouse on the
+    // lake shore, sailboats on the water and one hot-air balloon drifting
+    // over the valley. All placed on real terrain heights.
+    this.turbines = [];
+    for (let i = 0; i < 6; i += 1) {
+      const x = -2350 + range(random, -180, 180);
+      const z = -4200 + i * 620 + range(random, -120, 120);
+      this.turbines.push({ x, y: terrainHeight(x, z), z, phase: range(random, 0, 6.28) });
+    }
+    this.lighthouse = { x: 1520, z: -2680, y: terrainHeight(1520, -2680) };
+    this.boats = [];
+    for (let i = 0; i < 4; i += 1) {
+      this.boats.push({ x: 2100 + range(random, -420, 420), z: -3500 + range(random, -420, 420), phase: range(random, 0, 6.28) });
+    }
+    this.balloon = { x: -620, y: 330, z: -2600 };
     return this;
   }
 

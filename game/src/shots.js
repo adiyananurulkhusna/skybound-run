@@ -35,34 +35,37 @@ function flySeconds(world, seconds, target, targetSpeed) {
  */
 export function stageShot(name, world) {
   if (name === 'play') {
-    // Mid-course in chase view: two rings banked, the third ahead over the hills.
-    world.reset(world.seed, 0);
+    // Mid-course over the lake at noon: three rings banked, the fourth
+    // ahead with the lighthouse and sailboats below.
+    world.reset(world.seed, 1);
     const p = world.plane;
-    p.x = -758; p.y = 234; p.z = -2810;
-    p.heading = -0.33; p.pitch = 0.02; p.roll = -0.26;
-    p.speed = 57; p.throttle = 0.66; p.airborne = true; p.gear = false;
+    p.x = 1715; p.y = 232; p.z = -3855;
+    p.heading = 0.44; p.pitch = 0.03; p.roll = 0.3;
+    p.speed = 62; p.throttle = 0.72; p.airborne = true; p.gear = false;
     world.started = true;
     world.rings[0].passed = true;
     world.rings[1].passed = true;
-    world.nextRing = 2;
-    world.score = 200;
-    world.time = 62;
-    flySeconds(world, 1.5, world.rings[2], 58);
+    world.rings[2].passed = true;
+    world.nextRing = 3;
+    world.score = 300;
+    world.time = 74;
+    flySeconds(world, 1.2, world.rings[3], 62);
     return { screen: SCREEN_PLAY, camera: CAM_CHASE };
   }
   if (name === 'cockpit') {
-    // Final approach to runway 36 from the cockpit, instruments lit.
+    // Final approach to runway 36 from the cockpit, instruments lit, the
+    // strip centred ahead and the town off the right wing.
     world.reset(world.seed, 0);
     const p = world.plane;
-    p.x = 16; p.y = 84; p.z = 830;
-    p.heading = 0.012; p.pitch = -0.035; p.roll = 0.02;
-    p.speed = 42; p.throttle = 0.3; p.vy = -2.2; p.airborne = true; p.gear = true; p.flaps = true;
+    p.x = 10; p.y = 66; p.z = 640;
+    p.heading = 0.008; p.pitch = -0.03; p.roll = 0.015;
+    p.speed = 41; p.throttle = 0.28; p.vy = -2.0; p.airborne = true; p.gear = true; p.flaps = true;
     world.started = true;
     for (const ring of world.rings) ring.passed = true;
     world.nextRing = world.rings.length;
     world.score = 600;
-    world.time = 138;
-    flySeconds(world, 1.5, { x: 0, y: 44, z: -320 }, 41);
+    world.time = 141;
+    flySeconds(world, 1.2, { x: 0, y: 40, z: -320 }, 40);
     return { screen: SCREEN_PLAY, camera: CAM_COCKPIT };
   }
   if (name === 'end') {
@@ -80,7 +83,7 @@ export function stageShot(name, world) {
     world.land(p);
     return { screen: SCREEN_RESULTS, camera: CAM_CHASE };
   }
-  // start: the title over the dawn runway, aircraft ready at the threshold.
-  world.reset(world.seed, 0);
+  // start: the title over the dusk runway, aircraft ready at the threshold.
+  world.reset(world.seed, 2);
   return { screen: SCREEN_TITLE, camera: CAM_CHASE };
 }
