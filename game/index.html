@@ -3,17 +3,67 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Skybound Run</title>
+<title>Skybound Run 3D</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #10151d; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1220; font-family: "Segoe UI", system-ui, sans-serif; }
   #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .hud { position: fixed; color: #eaf4ff; text-shadow: 0 1px 3px rgba(0,0,0,.7); pointer-events: none; z-index: 5; }
+  #topbar { top: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
+  #heading { font-size: 26px; font-weight: 700; letter-spacing: 2px; background: rgba(8,18,32,.55); padding: 6px 18px; border-radius: 10px; border: 1px solid rgba(140,200,255,.35); }
+  #ringinfo { margin-top: 6px; font-size: 16px; font-weight: 600; color: #ffd97a; }
+  #score { top: 14px; left: 16px; font-size: 22px; font-weight: 700; }
+  #course { top: 44px; left: 16px; font-size: 14px; opacity: .9; }
+  #view { top: 14px; right: 16px; font-size: 15px; font-weight: 700; text-align: right; }
+  .tape { top: 50%; transform: translateY(-50%); background: rgba(8,18,32,.55); border: 1px solid rgba(140,200,255,.35); border-radius: 10px; padding: 10px 12px; text-align: center; min-width: 74px; }
+  #speedtape { left: 16px; } #alttape { right: 16px; }
+  .tape .big { font-size: 28px; font-weight: 800; color: #ffb84d; }
+  .tape .lab { font-size: 11px; letter-spacing: 1px; opacity: .85; }
+  #msg { top: 34%; left: 50%; transform: translateX(-50%); font-size: 34px; font-weight: 800; color: #ffe9a8; text-align: center; }
+  #sub { bottom: 18px; left: 16px; font-size: 13px; opacity: .92; }
+  #minimap { position: fixed; right: 16px; bottom: 16px; width: 150px; height: 150px; background: rgba(8,18,32,.55); border: 1px solid rgba(140,200,255,.35); border-radius: 10px; z-index: 5; }
+  #panel { position: fixed; left: 0; right: 0; bottom: 0; height: 150px; display: none; z-index: 6; background: linear-gradient(#2a3138,#14181d); border-top: 3px solid #3c454f; }
+  #panel canvas { display: block; margin: 0 auto; }
+  .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; color: #fff; text-align: center; background: rgba(6,12,22,.35); }
+  .overlay h1 { font-size: 64px; margin: 0; letter-spacing: 3px; background: linear-gradient(#fff,#ffc98a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 8px rgba(0,0,0,.6)); }
+  .overlay p { font-size: 17px; margin: 8px 0; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
+  .card { background: rgba(8,16,28,.82); border: 1px solid rgba(140,200,255,.35); border-radius: 14px; padding: 18px 26px; margin-top: 14px; }
+  .card div { font-size: 16px; margin: 5px 0; }
+  .sel { color: #ffb84d; font-weight: 700; }
+  #end { display: none; }
+  #grade { font-size: 90px; font-weight: 900; color: #ffd97a; }
 </style>
 </head>
 <body>
-<canvas id="game" width="1920" height="1080" aria-label="Skybound Run: take off, fly through every ring, then land on runway 36"></canvas>
-<p id="status" role="status" aria-live="polite"></p>
-<script type="module" src="./src/main.js"></script>
+<canvas id="game" aria-label="Skybound Run 3D: take off, fly through every ring, then land on runway 36"></canvas>
+<div class="hud" id="topbar"><div id="heading">HDG 360</div><div id="ringinfo">RING 1/8</div></div>
+<div class="hud" id="score">SCORE 0</div>
+<div class="hud" id="course">Coastal Noon</div>
+<div class="hud" id="view">CHASE<br>THR 0%</div>
+<div class="hud tape" id="speedtape"><div class="lab">SPEED KT</div><div class="big" id="spd">0</div></div>
+<div class="hud tape" id="alttape"><div class="lab">ALT FT</div><div class="big" id="alt">0</div></div>
+<div class="hud" id="msg"></div>
+<div class="hud" id="sub">GEAR DOWN · FLAPS OFF</div>
+<canvas id="minimap" width="150" height="150"></canvas>
+<div id="panel"><canvas id="gauges" width="900" height="150"></canvas></div>
+<div class="overlay" id="start">
+  <h1>SKYBOUND RUN</h1>
+  <p>Fly the rings. Land it smooth.</p>
+  <div class="card">
+    <div>COURSES — press 1, 2 or 3, then Enter</div>
+    <div id="c1">1&nbsp;&nbsp;Dawn Valley&nbsp;&nbsp;·&nbsp;&nbsp;6 rings&nbsp;&nbsp;·&nbsp;&nbsp;calm</div>
+    <div id="c2">2&nbsp;&nbsp;Coastal Noon&nbsp;&nbsp;·&nbsp;&nbsp;8 rings&nbsp;&nbsp;·&nbsp;&nbsp;crosswind</div>
+    <div id="c3">3&nbsp;&nbsp;Dusk Canyon&nbsp;&nbsp;·&nbsp;&nbsp;10 rings&nbsp;&nbsp;·&nbsp;&nbsp;gusty</div>
+    <div style="margin-top:10px;font-size:13px;opacity:.9">W/S throttle · Up/Down pitch · Left/Right roll · A/D rudder · mouse steers after a click<br>F flaps · G gear · Space brake · C camera · P pause · R restart</div>
+  </div>
+  <p style="font-weight:700">Press ENTER to fly</p>
+</div>
+<div class="overlay" id="end">
+  <div id="grade">S</div>
+  <p id="endline">Smooth landing</p>
+  <div class="card"><div id="endscore">Score 0</div><div id="endtime">Time 0:00</div></div>
+  <p style="font-weight:700">Press R to fly again</p>
+</div>
+<script src="./vendor/three.min.js"></script>
+<script src="./src/main3d.js"></script>
 </body>
 </html>
