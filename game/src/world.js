@@ -33,7 +33,7 @@ export function terrainHeight(x, z) {
     5 * Math.sin(x * 0.008 + z * 0.006);
   // Western ridge.
   const ridge = Math.max(0, 1 - Math.abs(x + 2350) / 1600);
-  h += ridge * ridge * 245 * (0.7 + 0.3 * Math.sin(z * 0.0016));
+  h += ridge * ridge * 290 * (0.7 + 0.3 * Math.sin(z * 0.0016));
   // Eastern lake basin.
   const lake = Math.max(0, 1 - Math.hypot(x - 2300, z + 3600) / 1700);
   h -= lake * lake * 46;

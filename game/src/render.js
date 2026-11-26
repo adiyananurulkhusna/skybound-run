@@ -129,14 +129,23 @@ function drawSky(ctx, pal, cam) {
   }
 }
 
-function terrainColor(pal, h, slope, depth) {
+function terrainColor(pal, h, slope, depth, gx = 0, gz = 0) {
   let base;
   if (h < WATER_LEVEL) base = pal.water;
   else if (h < WATER_LEVEL + 2.5) base = '#c2b280';
-  else if (h > 205) base = '#e8e4da';
+  else if (h > 185) base = '#eef0ea';
   else if (slope > 0.55) base = pal.rock;
   else base = h > 90 ? pal.grassHigh : pal.grass;
-  const lit = shade(base, clamp(1.06 - slope * 0.35, 0.62, 1.12));
+  // Farmland patches on the flat valley floor: 340 m blocks alternate
+  // between green and golden, so the ground reads as fields from the air.
+  let patch = 1;
+  if (h >= WATER_LEVEL && h < 70 && slope < 0.2) {
+    const bx = Math.floor(gx / 340), bz = Math.floor(gz / 340);
+    const hash = Math.abs(Math.sin(bx * 127.1 + bz * 311.7) * 43758.5453) % 1;
+    if (hash > 0.62) base = '#b3a355';
+    patch = 0.93 + hash * 0.14;
+  }
+  const lit = shade(base, clamp((1.06 - slope * 0.35) * patch, 0.6, 1.16));
   const fogT = clamp(1 - Math.exp(-depth / 1200), 0, 0.97);
   // mix() needs hex; convert the shaded rgb back through a canvas-free path:
   return fogT < 0.02 ? lit : mixRgb(lit, pal.fog, fogT);
@@ -171,11 +180,11 @@ function drawTerrain(ctx, world, cam) {
       if (ccx * cam.f.x + ccy * cam.f.y + ccz * cam.f.z < 2) continue;
       const depth = (p00.d + p11.d) / 2;
       const slope = Math.max(Math.abs(h10 - h00), Math.abs(h01 - h00)) / step;
-      quads.push({ pts: [p00, p10, p11, p01], depth, h: (h00 + h11) / 2, slope });
+      quads.push({ pts: [p00, p10, p11, p01], depth, h: (h00 + h11) / 2, slope, gx, gz });
     }
   }
   quads.sort((a, b) => b.depth - a.depth);
-  for (const q of quads) poly(ctx, q.pts, terrainColor(pal, q.h, q.slope, q.depth));
+  for (const q of quads) poly(ctx, q.pts, terrainColor(pal, q.h, q.slope, q.depth, q.gx, q.gz));
 }
 
 function drawRunway(ctx, world, cam) {
@@ -268,10 +277,25 @@ function drawRings(ctx, world, cam) {
     ctx.lineWidth = Math.max(1.2, 110 / pts[0].d);
     ctx.stroke();
     if (isNext) {
-      const c = project(cam, ring.x, ring.y, ring.z);
-      if (c) {
+      // A soft light pillar to the ground marks the target from far off,
+      // and a pulsing halo draws the eye to the ring itself.
+      const top = project(cam, ring.x, ring.y, ring.z);
+      const foot = project(cam, ring.x, terrainHeight(ring.x, ring.z), ring.z);
+      if (top && foot) {
         ctx.beginPath();
-        ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+        ctx.moveTo(top.x, top.y);
+        ctx.lineTo(foot.x, foot.y);
+        ctx.strokeStyle = colour + '30';
+        ctx.lineWidth = Math.max(2, 300 / top.d);
+        ctx.stroke();
+        const pulse = 1 + 0.18 * Math.sin(world.time * 3.2);
+        ctx.beginPath();
+        ctx.arc(top.x, top.y, Math.max(3, (RING.radius * FOCAL / top.d) * pulse), 0, Math.PI * 2);
+        ctx.strokeStyle = colour + '66';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(top.x, top.y, 4, 0, Math.PI * 2);
         ctx.fillStyle = colour;
         ctx.fill();
       }
@@ -336,6 +360,7 @@ function drawAircraft(ctx, world, lift = 0) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(p.roll * 0.85);
+  ctx.scale(1.22, 1.22);
   // Propeller blur.
   ctx.beginPath();
   ctx.ellipse(0, -6, 7, 30, 0, 0, Math.PI * 2);
@@ -352,6 +377,10 @@ function drawAircraft(ctx, world, lift = 0) {
   wingGrad.addColorStop(1, '#c94f42');
   ctx.fillStyle = wingGrad;
   ctx.fill();
+  // Wing stripes.
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(-86, 4, 26, 4);
+  ctx.fillRect(60, 4, 26, 4);
   // Fuselage.
   ctx.beginPath();
   ctx.ellipse(0, 2, 15, 34, 0, 0, Math.PI * 2);
@@ -360,6 +389,10 @@ function drawAircraft(ctx, world, lift = 0) {
   ctx.beginPath();
   ctx.ellipse(0, -12, 9, 15, 0, 0, Math.PI * 2);
   ctx.fillStyle = '#37506b';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(-3, -18, 3.4, 7, -0.3, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(200,225,245,0.75)';
   ctx.fill();
   // Tail.
   ctx.beginPath();

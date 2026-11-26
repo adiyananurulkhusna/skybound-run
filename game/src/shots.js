@@ -38,8 +38,8 @@ export function stageShot(name, world) {
     // Mid-course in chase view: two rings banked, the third ahead over the hills.
     world.reset(world.seed, 0);
     const p = world.plane;
-    p.x = -640; p.y = 228; p.z = -2520;
-    p.heading = -0.34; p.pitch = 0.02; p.roll = -0.28;
+    p.x = -758; p.y = 234; p.z = -2810;
+    p.heading = -0.33; p.pitch = 0.02; p.roll = -0.26;
     p.speed = 57; p.throttle = 0.66; p.airborne = true; p.gear = false;
     world.started = true;
     world.rings[0].passed = true;
@@ -47,22 +47,22 @@ export function stageShot(name, world) {
     world.nextRing = 2;
     world.score = 200;
     world.time = 62;
-    flySeconds(world, 2.4, world.rings[2], 58);
+    flySeconds(world, 1.5, world.rings[2], 58);
     return { screen: SCREEN_PLAY, camera: CAM_CHASE };
   }
   if (name === 'cockpit') {
     // Final approach to runway 36 from the cockpit, instruments lit.
     world.reset(world.seed, 0);
     const p = world.plane;
-    p.x = 20; p.y = 122; p.z = 1180;
-    p.heading = 0.015; p.pitch = -0.04; p.roll = 0.03;
-    p.speed = 43; p.throttle = 0.32; p.vy = -2.5; p.airborne = true; p.gear = true; p.flaps = true;
+    p.x = 16; p.y = 84; p.z = 830;
+    p.heading = 0.012; p.pitch = -0.035; p.roll = 0.02;
+    p.speed = 42; p.throttle = 0.3; p.vy = -2.2; p.airborne = true; p.gear = true; p.flaps = true;
     world.started = true;
     for (const ring of world.rings) ring.passed = true;
     world.nextRing = world.rings.length;
     world.score = 600;
     world.time = 138;
-    flySeconds(world, 2.2, { x: 0, y: 58, z: -320 }, 42);
+    flySeconds(world, 1.5, { x: 0, y: 44, z: -320 }, 41);
     return { screen: SCREEN_PLAY, camera: CAM_COCKPIT };
   }
   if (name === 'end') {
