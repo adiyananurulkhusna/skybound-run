@@ -4,7 +4,35 @@
 [![rank](https://make.fun/badge/best-flight-game-20261126-0057/adiyananurulkhusna/skybound-run/rank.svg)](https://make.fun/bounty/best-flight-game-20261126-0057/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=best-flight-game-20261126-0057)
 [![reward](https://make.fun/badge/best-flight-game-20261126-0057/adiyananurulkhusna/skybound-run/reward.svg)](https://make.fun/bounty/best-flight-game-20261126-0057?utm_source=github&utm_medium=readme&utm_campaign=best-flight-game-20261126-0057)
 
-Skybound Run is an original flight game for the desktop browser: take off from runway 36, fly a course of target rings over rolling hills, a winding river, a lake with sailboats and a lighthouse, farmland, wind turbines and a snowy mountain ridge, then land back on the strip for a graded score. Chase and cockpit views with a lit instrument panel (airspeed, altitude, vertical speed, heading, moving yoke), a full HUD showing altitude, speed, heading, wind, height above ground and ring progress, stall and sink-rate warnings, speed streaks at high velocity, three courses at dawn, noon and dusk with crosswinds, and a landing report that scores your touchdown sink rate, centreline and speed. Plain canvas and vanilla JavaScript — no libraries, no network requests, plays offline from its own files; all sound is synthesised with WebAudio. Best scores save to localStorage.
+Skybound Run is an original flight game for the desktop browser: take off from runway 36, fly a course of target rings over rolling hills, a winding river, a lake with sailboats and a lighthouse, farmland, villages, wind turbines and a snowy mountain ridge, then land back on the strip for a graded score. Chase and cockpit views with a lit instrument panel (airspeed, altitude, vertical speed, heading, moving yoke), a full HUD showing altitude, speed, heading, wind, height above ground, a minimap and ring progress, score popups with a PERFECT bonus for threading the middle of a ring, stall and sink-rate warnings, speed streaks at high velocity, three courses at dawn, noon and dusk with crosswinds, and a landing report that scores your touchdown sink rate, centreline and speed. Rendered at 1920×1080 with sun-lit terrain shading, atmospheric haze, cloud shadows and sun glint on the water. Plain canvas and vanilla JavaScript — no libraries, no network requests, plays offline from its own files; all sound is synthesised with WebAudio. Best scores save to localStorage.
+
+## Features
+
+- Three courses: Dawn Valley (6 rings, calm), Coastal Noon (8 rings, crosswind), Dusk Canyon (10 rings, gusty)
+- Chase and cockpit cameras with a smoothed, trailing chase view
+- Lit cockpit: artificial horizon, airspeed, altimeter, vertical speed, heading, throttle and warning lamps
+- HUD: compass ribbon, speed/altitude tapes, flight-path marker, ring pips, minimap, wind and height above ground
+- Scoring: 100 per ring, +50 PERFECT bonus through the centre, graded landing (sink rate, centreline, speed) plus a time bonus, letter grades S–D
+- Living scenery: river, lake, sailboats, lighthouse with rotating beam, wind turbines, villages, roads, hot-air balloon, drifting clouds with ground shadows
+- Synthesised engine, ring, touchdown and crash sounds (WebAudio, M to mute)
+
+## Controls
+
+| Key | Action |
+| --- | --- |
+| W / S | Throttle up / down |
+| Down / Up | Pitch up / down |
+| Left / Right | Roll |
+| A / D | Rudder |
+| Mouse | Steer after a click |
+| F | Flaps |
+| G | Gear |
+| Space | Brake |
+| C | Camera (chase / cockpit) |
+| P | Pause |
+| M | Mute |
+| R | Restart |
+| 1–3, Enter | Choose course, start |
 
 ## Run it
 

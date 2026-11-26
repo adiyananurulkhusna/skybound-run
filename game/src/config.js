@@ -34,6 +34,7 @@ export const PLANE = {
 
 export const SCORE = {
   ring: 100,
+  perfectRing: 50, // bonus for threading the middle of a ring
   landingBase: 300,
   perfectBonus: 150,
   timeBonusPerSecond: 4,
@@ -113,7 +114,7 @@ export const COURSES = [
   },
 ];
 
-export const RING = { radius: 27, tube: 2.2 };
+export const RING = { radius: 34, tube: 2.6 };
 
 export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 export const MONO = 'ui-monospace, "SF Mono", Consolas, monospace';

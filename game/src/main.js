@@ -15,6 +15,9 @@ import { EVENT_CRASHED, EVENT_LANDED, EVENT_RING, World } from './world.js';
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const status = document.getElementById('status');
+// The canvas backing store is 1920x1080 while the game draws in a 1280x720
+// logical space, so every frame renders at 1.5x for a sharp, HD picture.
+const RENDER_SCALE = 1.5;
 
 const params = new URLSearchParams(location.search);
 const seed = Number(params.get('seed')) || 1;
@@ -139,6 +142,7 @@ function frame(now) {
   }
 
   sound.update(world.plane, screen === SCREEN_PLAY);
+  ctx.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, 0, 0);
   render(ctx, world, { screen, camera, best });
 }
 

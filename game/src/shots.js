@@ -39,17 +39,19 @@ export function stageShot(name, world) {
     // ahead with the lighthouse and sailboats below.
     world.reset(world.seed, 1);
     const p = world.plane;
-    p.x = 1715; p.y = 232; p.z = -3855;
-    p.heading = 0.44; p.pitch = 0.03; p.roll = 0.3;
-    p.speed = 62; p.throttle = 0.72; p.airborne = true; p.gear = false;
+    p.x = 1812; p.y = 228; p.z = -3992;
+    p.heading = 0.43; p.pitch = 0.02; p.roll = 0.42;
+    p.speed = 66; p.throttle = 0.78; p.airborne = true; p.gear = false;
     world.started = true;
     world.rings[0].passed = true;
     world.rings[1].passed = true;
     world.rings[2].passed = true;
     world.nextRing = 3;
-    world.score = 300;
+    world.score = 350;
+    world.ringScore = 350;
     world.time = 74;
-    flySeconds(world, 1.2, world.rings[3], 62);
+    world.popup = { text: '+150', sub: 'PERFECT', at: 73.55 };
+    flySeconds(world, 0.45, world.rings[3], 66);
     return { screen: SCREEN_PLAY, camera: CAM_CHASE };
   }
   if (name === 'cockpit') {
@@ -64,6 +66,7 @@ export function stageShot(name, world) {
     for (const ring of world.rings) ring.passed = true;
     world.nextRing = world.rings.length;
     world.score = 600;
+    world.ringScore = 600;
     world.time = 141;
     flySeconds(world, 1.2, { x: 0, y: 40, z: -320 }, 40);
     return { screen: SCREEN_PLAY, camera: CAM_COCKPIT };
@@ -74,8 +77,9 @@ export function stageShot(name, world) {
     const p = world.plane;
     for (const ring of world.rings) ring.passed = true;
     world.nextRing = world.rings.length;
-    world.score = 600;
-    world.time = 121;
+    world.score = 800;
+    world.ringScore = 800;
+    world.time = 105;
     p.x = 3; p.y = 12; p.z = -60;
     p.heading = 0; p.pitch = 0; p.roll = 0;
     p.speed = 33; p.throttle = 0.12; p.vy = -1.2;

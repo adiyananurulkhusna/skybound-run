@@ -91,9 +91,11 @@ export class World {
     this.rings = this.course.rings.map((ring) => ({ ...ring, passed: false }));
     this.nextRing = 0;
     this.score = 0;
+    this.ringScore = 0;
     this.finished = false;
     this.crashReason = '';
     this.landingReport = null;
+    this.popup = null; // { text, sub, at } score feedback the HUD floats up
     this.gust = 0;
     // Scenery the renderer draws: clouds, trees and town blocks, seeded.
     const random = makeRandom(seed * 7919 + courseIndex * 131);
@@ -105,13 +107,16 @@ export class World {
       });
     }
     this.trees = [];
-    for (let i = 0; i < 260; i += 1) {
-      const x = range(random, -4200, 4200);
-      const z = range(random, -6800, 2000);
-      if (onRunway(x, z) || Math.abs(x) < 160 && Math.abs(z) < 700) continue;
+    for (let i = 0; i < 560; i += 1) {
+      // Clustered woods: pick a grove centre, then scatter trees around it.
+      const gx = range(random, -4200, 4200);
+      const gz = range(random, -6800, 2000);
+      const x = gx + range(random, -140, 140);
+      const z = gz + range(random, -140, 140);
+      if (onRunway(x, z) || Math.abs(x) < 180 && Math.abs(z) < 720) continue;
       const y = terrainHeight(x, z);
       if (y < WATER_LEVEL + 1) continue;
-      this.trees.push({ x, y, z, s: range(random, 7, 15) });
+      this.trees.push({ x, y, z, s: range(random, 9, 21), pine: random() > 0.45 });
     }
     this.blocks = [];
     for (let i = 0; i < 46; i += 1) {
@@ -119,6 +124,27 @@ export class World {
       const z = 420 + range(random, -320, 320);
       this.blocks.push({ x, y: terrainHeight(x, z), z, w: range(random, 16, 34), h: range(random, 10, 38) });
     }
+    // Villages and farmhouses: small homes with pitched roofs, clustered
+    // near the town and scattered over the farmland.
+    this.houses = [];
+    const houseSpots = [
+      [760, 180], [820, 260], [700, 320], [880, 120], [-520, -900], [-460, -1020],
+      [-620, -820], [420, -1500], [520, -1420], [1180, -1900], [1260, -2020],
+      [-980, -2400], [-900, -2520], [300, 900], [420, 980], [-700, 500], [-780, 620],
+    ];
+    for (const [hx, hz] of houseSpots) {
+      const x = hx + range(random, -30, 30);
+      const z = hz + range(random, -30, 30);
+      const y = terrainHeight(x, z);
+      if (y < WATER_LEVEL + 1) continue;
+      this.houses.push({ x, y, z, w: range(random, 12, 20), h: range(random, 7, 12), tone: random() });
+    }
+    // Roads the renderer drapes over the terrain: airfield to town, then
+    // north past the farms toward the river bridge.
+    this.roads = [
+      [[60, 300], [300, 330], [520, 360], [760, 300], [980, 180], [1150, -120], [1180, -700], [1120, -1300], [1150, -1900], [1300, -2400]],
+      [[-80, -200], [-420, -600], [-520, -950], [-700, -1500], [-950, -2400], [-1250, -3200]],
+    ];
     // Landmarks: wind turbines on the western ridge, a lighthouse on the
     // lake shore, sailboats on the water and one hot-air balloon drifting
     // over the valley. All placed on real terrain heights.
@@ -227,11 +253,18 @@ export class World {
 
     // Ring pass: the segment prev->now crosses the ring's plane inside it.
     const ring = this.targetRing();
-    if (ring && this.crossedRing(prev, p, ring)) {
-      ring.passed = true;
-      this.nextRing += 1;
-      this.score += SCORE.ring;
-      events |= EVENT_RING;
+    if (ring) {
+      const dist = this.ringDistance(prev, p, ring);
+      if (dist <= RING.radius) {
+        ring.passed = true;
+        this.nextRing += 1;
+        const perfect = dist <= RING.radius * 0.4;
+        const points = SCORE.ring + (perfect ? SCORE.perfectRing : 0);
+        this.score += points;
+        this.ringScore += points;
+        this.popup = { text: `+${points}`, sub: perfect ? 'PERFECT' : `RING ${this.nextRing}`, at: this.time };
+        events |= EVENT_RING;
+      }
     }
 
     // Ground contact: only when settling onto the surface, never while
@@ -257,17 +290,14 @@ export class World {
     return events;
   }
 
-  /** True when the flight segment passes through the ring's disc. */
-  crossedRing(prev, now, ring) {
-    // Ring planes face the course direction; approximate with the segment's
-    // closest approach to the ring centre within one step.
+  /** Closest approach of the flight segment to the ring centre, in metres. */
+  ringDistance(prev, now, ring) {
     const dx = now.x - prev.x, dy = now.y - prev.y, dz = now.z - prev.z;
     const len2 = dx * dx + dy * dy + dz * dz || 1;
     let t = ((ring.x - prev.x) * dx + (ring.y - prev.y) * dy + (ring.z - prev.z) * dz) / len2;
     t = Math.min(1, Math.max(0, t));
     const cx = prev.x + dx * t, cy = prev.y + dy * t, cz = prev.z + dz * t;
-    const dist = Math.hypot(ring.x - cx, ring.y - cy, ring.z - cz);
-    return dist <= RING.radius;
+    return Math.hypot(ring.x - cx, ring.y - cy, ring.z - cz);
   }
 
   land(p) {
@@ -296,7 +326,7 @@ export class World {
 
   /** Letter grade for the results screen. */
   grade() {
-    const max = this.rings.length * SCORE.ring + SCORE.landingBase + SCORE.perfectBonus + this.course.par * SCORE.timeBonusPerSecond;
+    const max = this.rings.length * (SCORE.ring + SCORE.perfectRing) + SCORE.landingBase + SCORE.perfectBonus + this.course.par * SCORE.timeBonusPerSecond;
     const ratio = this.score / max;
     if (ratio >= 0.82) return 'S';
     if (ratio >= 0.66) return 'A';
