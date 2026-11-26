@@ -111,7 +111,7 @@ function poly(ctx, pts, fill) {
   ctx.fill();
 }
 
-function drawSky(ctx, pal, cam) {
+function drawSky(ctx, pal, cam, time = 0) {
   const horizonY = H / 2 + Math.tan(-Math.asin(clamp(cam.f.y, -1, 1))) * FOCAL * 0.4;
   const grad = ctx.createLinearGradient(0, 0, 0, Math.max(horizonY, 1));
   grad.addColorStop(0, pal.skyTop);
@@ -174,13 +174,13 @@ function drawSky(ctx, pal, cam) {
     ctx.fillStyle = layer.colour;
     ctx.fill();
   }
-  // A loose flock of birds crossing the valley.
+  // A loose flock of birds crossing the valley, wings beating as they go.
   ctx.strokeStyle = 'rgba(30,38,48,0.55)';
   ctx.lineWidth = 1.6;
   for (let i = 0; i < 5; i += 1) {
-    const bx = ((i * 173 + 220) % (W + 120)) - 60;
-    const by = 120 + i * 17 + Math.sin(i * 2.3) * 8;
-    const flap = Math.sin(i * 1.7) * 3;
+    const bx = ((i * 173 + 220 + time * 24) % (W + 160)) - 80;
+    const by = 120 + i * 17 + Math.sin(time * 0.9 + i * 2.3) * 8;
+    const flap = Math.sin(time * 7 + i * 1.7) * 3.4;
     ctx.beginPath();
     ctx.moveTo(bx - 7, by + flap);
     ctx.lineTo(bx, by);
@@ -194,7 +194,7 @@ function hash2(x, z) {
   return s - Math.floor(s);
 }
 
-function terrainColor(pal, h, slope, depth, gx = 0, gz = 0) {
+function terrainColor(pal, h, slope, depth, gx = 0, gz = 0, t = 0) {
   let base;
   if (h < WATER_LEVEL) base = pal.water;
   else if (h < WATER_LEVEL + 1.1) base = '#e6ddc0'; // pale shoreline foam line
@@ -209,8 +209,8 @@ function terrainColor(pal, h, slope, depth, gx = 0, gz = 0) {
   // Water shimmer and a bright sun glint path.
   let waterGlow = 1;
   if (h < WATER_LEVEL) {
-    const shimmer = Math.abs(Math.sin(gx * 0.021 + gz * 0.017)) * 0.5 + Math.abs(Math.sin(gx * 0.005 - gz * 0.009)) * 0.5;
-    const glint = Math.pow(Math.abs(Math.sin(gx * 0.004 + gz * 0.011)), 6) * 0.8;
+    const shimmer = Math.abs(Math.sin(gx * 0.021 + gz * 0.017 + t * 1.4)) * 0.5 + Math.abs(Math.sin(gx * 0.005 - gz * 0.009 + t * 0.7)) * 0.5;
+    const glint = Math.pow(Math.abs(Math.sin(gx * 0.004 + gz * 0.011 + t * 0.5)), 6) * 0.8;
     waterGlow = 0.9 + shimmer * 0.4 + glint;
   }
   // Farmland patches on the flat valley floor: 520 m blocks alternate
@@ -226,8 +226,8 @@ function terrainColor(pal, h, slope, depth, gx = 0, gz = 0) {
     patch = 0.96 + hash * 0.08;
   }
   const lit = shade(base, clamp((1.06 - slope * 0.35) * patch * waterGlow * noise * sunFace, 0.55, 1.45));
-  // Atmospheric perspective: distance dissolves into haze.
-  const fogT = clamp(1 - Math.exp(-depth / 1150), 0, 0.97);
+  // Atmospheric perspective: distance dissolves into haze (denser at dawn).
+  const fogT = clamp(1 - Math.exp(-depth / (1150 * (pal.fogScale || 1))), 0, 0.97);
   return fogT < 0.02 ? lit : mixRgb(lit, pal.fog, fogT);
 }
 
@@ -265,7 +265,7 @@ function drawTerrain(ctx, world, cam) {
   }
   quads.sort((a, b) => b.depth - a.depth);
   for (const q of quads) {
-    poly(ctx, q.pts, terrainColor(pal, q.h, q.slope, q.depth, q.gx, q.gz));
+    poly(ctx, q.pts, terrainColor(pal, q.h, q.slope, q.depth, q.gx, q.gz, world.fxTime || 0));
     // Field boundaries: a darker seam where farmland blocks meet.
     if (q.depth < 2200 && q.h >= WATER_LEVEL && q.h < 70 && q.slope < 0.2
       && (q.gx % 520 === 0 || q.gz % 520 === 0)) {
@@ -309,6 +309,21 @@ function drawRoads(ctx, world, cam) {
     ctx.setLineDash([8, 10]);
     ctx.stroke();
     ctx.setLineDash([]);
+    // Streetlights along the road, glowing as the light fades.
+    const lights = world.course.palette.lights || 0;
+    if (lights > 0.25) {
+      for (let i = 0; i < pts.length; i += 4) {
+        const p = pts[i];
+        if (p.d > 2400) continue;
+        const g = ctx.createRadialGradient(p.x, p.y - 3, 0.5, p.x, p.y - 3, 9);
+        g.addColorStop(0, `rgba(255,214,140,${0.85 * lights})`);
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(p.x, p.y - 3, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffe6b0';
+        ctx.beginPath(); ctx.arc(p.x, p.y - 3, 1.8, 0, Math.PI * 2); ctx.fill();
+      }
+    }
   }
 }
 
@@ -340,23 +355,189 @@ function drawRunway(ctx, world, cam) {
   for (let z = -hl + 90; z < hl - 90; z += 60) line(0, z, 0, z + 32, 1.1, '#dfe5ea');
   line(-hw + 1.5, -hl, -hw + 1.5, hl, 0.7, '#cfd6dd');
   line(hw - 1.5, -hl, hw - 1.5, hl, 0.7, '#cfd6dd');
-  // Edge lights.
-  ctx.fillStyle = '#ffe9a8';
-  for (let z = -hl; z <= hl; z += 75) {
-    for (const x of [-hw - 2, hw + 2]) {
-      const s = project(cam, x, e + 0.8, z);
-      if (s) ctx.fillRect(s.x - 1.6, s.y - 1.6, 3.2, 3.2);
+  // Aiming-point bars and touchdown-zone marks.
+  for (const end of [-1, 1]) {
+    line(-9, end * (hl - 150), -9, end * (hl - 200), 3.4, '#e8ecf0');
+    line(9, end * (hl - 150), 9, end * (hl - 200), 3.4, '#e8ecf0');
+    line(-7, end * (hl - 240), -7, end * (hl - 272), 2.2, '#d5dce3');
+    line(7, end * (hl - 240), 7, end * (hl - 272), 2.2, '#d5dce3');
+  }
+  // Edge lights with a warm glow, green threshold and red far-end lights.
+  const lights = world.course.palette.lights || 0;
+  const lampDot = (x, z, colour, r = 3.2) => {
+    const s = project(cam, x, e + 0.8, z);
+    if (!s) return;
+    if (lights > 0.15) {
+      const g = ctx.createRadialGradient(s.x, s.y, 0.5, s.x, s.y, 11);
+      g.addColorStop(0, colour);
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(s.x, s.y, 11, 0, Math.PI * 2); ctx.fill();
     }
+    ctx.fillStyle = colour;
+    ctx.fillRect(s.x - r / 2, s.y - r / 2, r, r);
+  };
+  for (let z = -hl; z <= hl; z += 75) {
+    lampDot(-hw - 2, z, '#ffe9a8');
+    lampDot(hw + 2, z, '#ffe9a8');
+  }
+  for (let x = -hw + 4; x <= hw - 4; x += 8) {
+    lampDot(x, hl, '#4ee08a', 3.6); // threshold for runway 36 (approach from the south)
+    lampDot(x, -hl, '#ff5a4e', 3.6);
+  }
+  // Centreline lights guiding the roll.
+  for (let z = -hl + 40; z < hl - 40; z += 90) lampDot(0, z, '#f4f8fb', 2.4);
+  // PAPI glide-path lights beside the touchdown zone: two white, two red
+  // when on the slope, shifting with the aircraft's height on approach.
+  const p = world.plane;
+  const glideErr = p.airborne ? clamp((p.y - RUNWAY.elevation) / Math.max(60, p.z + hl) - 0.055, -0.05, 0.05) : 0;
+  const whites = p.airborne ? clamp(Math.round(2 + glideErr * 40), 0, 4) : 2;
+  for (let i = 0; i < 4; i += 1) {
+    lampDot(-hw - 12, hl - 190 - i * 7, i < whites ? '#ffffff' : '#ff5a4e', 4);
   }
   // Runway numbers, sized by depth.
   ctx.fillStyle = '#eef2f5';
   ctx.textAlign = 'center';
-  for (const [label, z] of [['36', -hl + 95], ['18', hl - 95]]) {
+  for (const [label, z] of [['18', -hl + 95], ['36', hl - 95]]) {
     const s = project(cam, 0, e + 0.1, z);
     if (s && s.d < 1400) {
       ctx.font = `700 ${clamp(9000 / s.d, 8, 44)}px ${FONT}`;
       ctx.fillText(label, s.x, s.y);
     }
+  }
+}
+
+/** Airfield buildings and furniture: hangar, tower, taxiway, cones, windsock. */
+function drawAirport(ctx, world, cam) {
+  const pal = world.course.palette;
+  const e = RUNWAY.elevation + 0.3;
+  const box = (x, z, w, h, d, wall, roof) => {
+    const corners = [
+      projectClamped(cam, x - w / 2, e, z - d / 2), projectClamped(cam, x + w / 2, e, z - d / 2),
+      projectClamped(cam, x + w / 2, e, z + d / 2), projectClamped(cam, x - w / 2, e, z + d / 2),
+    ];
+    const centre = project(cam, x, e, z);
+    if (!centre || centre.d > 3600) return;
+    const topY = centre.y - (h * FOCAL) / centre.d;
+    const wpx = (w * FOCAL) / centre.d;
+    poly(ctx, corners, shade(wall, 0.55));
+    ctx.fillStyle = mixRgb(shade(wall, 0.95), pal.fog, clamp(1 - Math.exp(-centre.d / 2200), 0, 0.9));
+    ctx.fillRect(centre.x - wpx / 2, topY, wpx, centre.y - topY);
+    ctx.beginPath();
+    ctx.moveTo(centre.x - wpx * 0.58, topY);
+    ctx.quadraticCurveTo(centre.x, topY - wpx * 0.3, centre.x + wpx * 0.58, topY);
+    ctx.closePath();
+    ctx.fillStyle = roof;
+    ctx.fill();
+  };
+  // Taxiway from the strip to the apron, with a yellow centreline.
+  const taxi = [
+    projectClamped(cam, -RUNWAY.width / 2, e, 300), projectClamped(cam, -190, e, 300),
+    projectClamped(cam, -190, e, 330), projectClamped(cam, -RUNWAY.width / 2, e, 330),
+  ];
+  poly(ctx, taxi, '#3c424a');
+  const apron = [
+    projectClamped(cam, -190, e, 210), projectClamped(cam, -80, e, 210),
+    projectClamped(cam, -80, e, 340), projectClamped(cam, -190, e, 340),
+  ];
+  poly(ctx, apron, '#434a53');
+  const ta = project(cam, -RUNWAY.width / 2, e + 0.06, 315);
+  const tb = project(cam, -190, e + 0.06, 315);
+  if (ta && tb) {
+    ctx.beginPath(); ctx.moveTo(ta.x, ta.y); ctx.lineTo(tb.x, tb.y);
+    ctx.strokeStyle = '#e8c84a'; ctx.lineWidth = Math.max(1, 500 / ta.d); ctx.stroke();
+  }
+  // Hangar with a curved roof and a lit doorway at dusk.
+  box(-150, 250, 64, 17, 40, '#9aa4ae', '#5d6a76');
+  const hangarDoor = project(cam, -150, e + 6, 229);
+  if (hangarDoor && hangarDoor.d < 1600) {
+    const dw = (30 * FOCAL) / hangarDoor.d, dh = (11 * FOCAL) / hangarDoor.d;
+    ctx.fillStyle = (pal.lights || 0) > 0.4 ? '#ffd98a' : '#4a545e';
+    ctx.fillRect(hangarDoor.x - dw / 2, hangarDoor.y - dh / 2, dw, dh);
+  }
+  // Control tower: shaft, glazed cab, blinking beacon.
+  box(-120, 150, 10, 26, 10, '#c8cfd6', '#39424e');
+  const cab = project(cam, -120, e + 29, 150);
+  if (cab && cab.d < 2600) {
+    const cw = (13 * FOCAL) / cab.d, ch = (5 * FOCAL) / cab.d;
+    ctx.fillStyle = (pal.lights || 0) > 0.3 ? '#bfe0f2' : '#7fa8c9';
+    ctx.fillRect(cab.x - cw / 2, cab.y - ch / 2, cw, ch);
+    if (Math.floor((world.fxTime || 0) * 1.2) % 2 === 0) {
+      ctx.fillStyle = '#ff5a4e';
+      ctx.beginPath(); ctx.arc(cab.x, cab.y - ch, Math.max(1.4, cw * 0.09), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  // Orange cones marking the apron edge.
+  for (let i = 0; i < 6; i += 1) {
+    const s = project(cam, -86, e, 220 + i * 22);
+    if (!s || s.d > 1800) continue;
+    const hpx = Math.max(2, (1.6 * FOCAL) / s.d);
+    ctx.fillStyle = '#e8722a';
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y - hpx); ctx.lineTo(s.x - hpx * 0.4, s.y); ctx.lineTo(s.x + hpx * 0.4, s.y);
+    ctx.closePath(); ctx.fill();
+  }
+  // Windsock swinging with the course wind.
+  const poleBase = project(cam, 58, e, -140);
+  const poleTop = project(cam, 58, e + 9, -140);
+  if (poleBase && poleTop && poleBase.d < 2200) {
+    ctx.strokeStyle = '#d7dde3';
+    ctx.lineWidth = Math.max(1, 260 / poleBase.d);
+    ctx.beginPath(); ctx.moveTo(poleBase.x, poleBase.y); ctx.lineTo(poleTop.x, poleTop.y); ctx.stroke();
+    const wind = world.windNow();
+    const wAng = Math.atan2(wind.x, -wind.z);
+    const droop = clamp(1 - Math.hypot(wind.x, wind.z) / 9, 0.15, 0.85);
+    const len = (6.5 * FOCAL) / poleBase.d;
+    const ex = poleTop.x + Math.sin(wAng - world.plane.heading) * len;
+    const ey = poleTop.y + droop * len * 0.55 + Math.sin((world.fxTime || 0) * 3.1) * 1.2;
+    ctx.strokeStyle = '#e8722a';
+    ctx.lineWidth = Math.max(1.4, 420 / poleBase.d);
+    ctx.beginPath(); ctx.moveTo(poleTop.x, poleTop.y); ctx.lineTo(ex, ey); ctx.stroke();
+  }
+}
+
+/** Low morning mist: soft drifting banks hugging the valley floor. */
+function drawMist(ctx, world, cam) {
+  const mist = world.course.palette.mist || 0;
+  if (mist <= 0) return;
+  const t = world.fxTime || 0;
+  for (let i = 0; i < 9; i += 1) {
+    const wx = cam.pos.x + Math.sin(i * 2.7) * 1000 + ((t * 9 + i * 340) % 700) - 350;
+    const wz = cam.pos.z - 420 - i * 300;
+    const s = project(cam, wx, terrainHeight(wx, wz) + 16, wz);
+    if (!s || s.d > 4200) continue;
+    const rw = (620 * FOCAL) / s.d;
+    const g = ctx.createRadialGradient(s.x, s.y, rw * 0.05, s.x, s.y, rw);
+    g.addColorStop(0, `rgba(245,240,230,${0.16 * mist})`);
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(s.x, s.y, rw, rw * 0.16, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** Dust, tyre smoke and wingtip vapour from the world's particle pool. */
+function drawParticles(ctx, world, cam) {
+  const parts = world.particles || [];
+  if (!parts.length) return;
+  const drawn = [];
+  for (const q of parts) {
+    const s = project(cam, q.x, q.y, q.z);
+    if (s) drawn.push({ q, s });
+  }
+  drawn.sort((a, b) => b.s.d - a.s.d);
+  for (const { q, s } of drawn) {
+    const ageT = 1 - q.life / q.max;
+    const r = Math.min(46, Math.max(1.2, ((q.size * (1 + ageT * 2.2)) * FOCAL) / s.d));
+    const alpha = (1 - ageT) * (q.kind === 'vapour' ? 0.4 : q.kind === 'smoke' ? 0.38 : 0.5);
+    const colour = q.kind === 'dust' ? `rgba(196,172,130,${alpha})`
+      : q.kind === 'smoke' ? `rgba(232,236,240,${alpha})` : `rgba(250,252,255,${alpha})`;
+    const g = ctx.createRadialGradient(s.x, s.y, r * 0.1, s.x, s.y, r);
+    g.addColorStop(0, colour);
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -509,9 +690,17 @@ function drawScenery(ctx, world, cam) {
     ctx.fillStyle = house.tone > 0.5 ? '#a84a3a' : '#7a4a34';
     ctx.fill();
     if (base.d < 1100) {
-      ctx.fillStyle = '#ffd98a';
+      const glow = 0.55 + (pal.lights || 0) * 0.45;
+      ctx.fillStyle = `rgba(255,217,138,${glow})`;
       ctx.fillRect(base.x - wpx * 0.28, top.y + (base.y - top.y) * 0.35, Math.max(1.6, wpx * 0.16), Math.max(2, wpx * 0.2));
       ctx.fillRect(base.x + wpx * 0.12, top.y + (base.y - top.y) * 0.35, Math.max(1.6, wpx * 0.16), Math.max(2, wpx * 0.2));
+      if ((pal.lights || 0) > 0.5) {
+        const g = ctx.createRadialGradient(base.x, top.y + (base.y - top.y) * 0.45, 1, base.x, top.y + (base.y - top.y) * 0.45, wpx * 0.7);
+        g.addColorStop(0, 'rgba(255,214,140,0.35)');
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(base.x, top.y + (base.y - top.y) * 0.45, wpx * 0.7, 0, Math.PI * 2); ctx.fill();
+      }
     }
   }
   // Trees: pines as stacked triangles, broadleaf as a shaded canopy ball.
@@ -549,7 +738,7 @@ function drawScenery(ctx, world, cam) {
   }
   // Clouds drift slowly east, with soft shadows pooled on the ground.
   for (const cloud of world.clouds) {
-    const x = cloud.x + ((world.time * cloud.drift) % 400);
+    const x = cloud.x + (((world.fxTime || 0) * cloud.drift * 6) % 900) - 450;
     const shadow = project(cam, x + 180, terrainHeight(x + 180, cloud.z) + 1, cloud.z);
     if (shadow && shadow.d < 5200) {
       const sr = (cloud.r * FOCAL) / shadow.d;
@@ -810,18 +999,51 @@ function drawAircraft(ctx, world, lift = 0) {
   }
 }
 
+/** Needles ease toward their value so the panel feels mechanical, not digital. */
+const needleState = {};
 function gauge(ctx, x, y, r, label, value, min, max, unit) {
+  const key = label;
+  needleState[key] = needleState[key] === undefined ? value : needleState[key] + (value - needleState[key]) * 0.35;
+  const shown = needleState[key];
+  // Bezel and glass.
+  ctx.beginPath();
+  ctx.arc(x, y, r + 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#232b36';
+  ctx.fill();
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#10151d';
+  const face = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+  face.addColorStop(0, '#1a2230');
+  face.addColorStop(1, '#0b0f16');
+  ctx.fillStyle = face;
   ctx.fill();
   ctx.strokeStyle = '#8fa3b8';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 1.6;
   ctx.stroke();
-  const t = clamp((value - min) / (max - min), 0, 1);
+  // Tick marks and numerals around the dial.
+  ctx.fillStyle = '#c9d6e2';
+  ctx.font = `600 ${Math.max(8, r * 0.17)}px ${MONO}`;
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= 10; i += 1) {
+    const t = i / 10;
+    const ang = Math.PI * 0.75 + t * Math.PI * 1.5;
+    const inner = i % 5 === 0 ? r * 0.72 : r * 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(ang) * inner, y + Math.sin(ang) * inner);
+    ctx.lineTo(x + Math.cos(ang) * r * 0.92, y + Math.sin(ang) * r * 0.92);
+    ctx.strokeStyle = '#c9d6e2';
+    ctx.lineWidth = i % 5 === 0 ? 2 : 1;
+    ctx.stroke();
+    if (i % 5 === 0) {
+      const num = Math.round(min + (max - min) * t);
+      ctx.font = `600 ${Math.max(7, r * 0.15)}px ${MONO}`;
+      ctx.fillText(String(num >= 1000 || num <= -1000 ? num / 100 : num), x + Math.cos(ang) * r * 0.66, y + Math.sin(ang) * r * 0.66 + 3);
+    }
+  }
+  const t = clamp((shown - min) / (max - min), 0, 1);
   const ang = Math.PI * 0.75 + t * Math.PI * 1.5;
   ctx.beginPath();
-  ctx.moveTo(x, y);
+  ctx.moveTo(x - Math.cos(ang) * r * 0.16, y - Math.sin(ang) * r * 0.16);
   ctx.lineTo(x + Math.cos(ang) * r * 0.78, y + Math.sin(ang) * r * 0.78);
   ctx.strokeStyle = '#ffb454';
   ctx.lineWidth = 3;
@@ -831,11 +1053,16 @@ function gauge(ctx, x, y, r, label, value, min, max, unit) {
   ctx.fillStyle = '#d7e1ea';
   ctx.fill();
   ctx.fillStyle = '#d7e1ea';
-  ctx.font = `600 11px ${FONT}`;
-  ctx.textAlign = 'center';
-  ctx.fillText(label, x, y + r * 0.52);
+  ctx.font = `600 10px ${FONT}`;
+  ctx.fillText(label, x, y + r * 0.4);
   ctx.font = `700 13px ${MONO}`;
-  ctx.fillText(`${Math.round(value)}${unit}`, x, y + r * 0.78);
+  ctx.fillText(`${Math.round(value)}${unit}`, x, y + r * 0.74);
+  // Glass reflection sweep.
+  ctx.beginPath();
+  ctx.arc(x, y, r, Math.PI * 1.05, Math.PI * 1.55);
+  ctx.strokeStyle = 'rgba(210,230,245,0.35)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
 }
 
 function drawCockpit(ctx, world) {
@@ -876,12 +1103,38 @@ function drawCockpit(ctx, world) {
   ctx.fillRect(-hr * 1.6, pitchPx, hr * 3.2, hr * 1.6);
   ctx.fillStyle = '#e8eef4';
   ctx.fillRect(-hr * 1.6, pitchPx - 1, hr * 3.2, 2);
+  // Pitch ladder lines that travel with the horizon.
+  ctx.strokeStyle = 'rgba(232,238,244,0.8)';
+  ctx.lineWidth = 1.4;
+  for (const deg of [-20, -10, 10, 20]) {
+    const ly = pitchPx - deg * 2.2;
+    const half = deg % 20 === 0 ? hr * 0.5 : hr * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(-half, ly); ctx.lineTo(half, ly);
+    ctx.stroke();
+  }
   ctx.restore();
   ctx.beginPath();
   ctx.arc(hx, hy, hr, 0, Math.PI * 2);
   ctx.strokeStyle = '#8fa3b8';
   ctx.lineWidth = 2;
   ctx.stroke();
+  // Roll ticks and pointer at the top of the ball.
+  ctx.strokeStyle = '#c9d6e2';
+  ctx.lineWidth = 1.6;
+  for (const deg of [-60, -30, 0, 30, 60]) {
+    const a = -Math.PI / 2 + deg * Math.PI / 180;
+    ctx.beginPath();
+    ctx.moveTo(hx + Math.cos(a) * hr * 0.88, hy + Math.sin(a) * hr * 0.88);
+    ctx.lineTo(hx + Math.cos(a) * hr * 0.98, hy + Math.sin(a) * hr * 0.98);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#ffd166';
+  ctx.beginPath();
+  ctx.moveTo(hx, hy - hr * 0.86);
+  ctx.lineTo(hx - 6, hy - hr * 0.98);
+  ctx.lineTo(hx + 6, hy - hr * 0.98);
+  ctx.closePath(); ctx.fill();
   ctx.strokeStyle = '#ffd166';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -894,19 +1147,26 @@ function drawCockpit(ctx, world) {
   // Heading indicator with a rotating compass card.
   const hdgDeg = ((p.heading * 180 / Math.PI) % 360 + 360) % 360;
   gauge(ctx, hx - 330, hy + 6, 42, 'HDG', hdgDeg, 0, 360, '');
-  // Control yoke that moves with the stick.
+  // Control yoke on its column, travelling with pitch and roll.
   ctx.save();
-  ctx.translate(hx, hy + 96);
-  ctx.rotate(p.roll * 0.5);
+  ctx.translate(hx, hy + 96 + p.pitch * 16);
+  ctx.rotate(p.roll * 0.55);
   ctx.strokeStyle = '#39424e';
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.moveTo(0, 26);
+  ctx.lineTo(0, 4);
+  ctx.stroke();
   ctx.lineWidth = 7;
   ctx.beginPath();
   ctx.moveTo(-46, 0);
   ctx.quadraticCurveTo(0, 16 + p.pitch * 10, 46, 0);
   ctx.stroke();
   ctx.fillStyle = '#2c3440';
-  ctx.fillRect(-54, -6, 14, 12);
-  ctx.fillRect(40, -6, 14, 12);
+  ctx.beginPath(); ctx.roundRect(-56, -7, 16, 14, 4); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(40, -7, 16, 14, 4); ctx.fill();
+  ctx.fillStyle = '#ffb454';
+  ctx.beginPath(); ctx.arc(0, 8, 4, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
   // Throttle lever.
   const tx = hx - 440, ty = hy - 40;
@@ -932,6 +1192,49 @@ function drawCockpit(ctx, world) {
   lamp(hx - 200, 'FLAPS', p.flaps, '#ffd166');
   lamp(hx + 200, 'STALL', p.stalled, '#ff5a4e');
   lamp(hx + 250, 'BRAKE', p.brake, '#ff9e5e');
+  // Radio stack and a small GPS readout on the right of the panel.
+  const rx = hx + 452, ry = hy - 58;
+  ctx.fillStyle = '#0d1117';
+  ctx.beginPath(); ctx.roundRect(rx - 62, ry, 124, 52, 6); ctx.fill();
+  ctx.strokeStyle = '#39424e'; ctx.stroke();
+  ctx.fillStyle = '#7dffb0';
+  ctx.font = `700 14px ${MONO}`;
+  ctx.textAlign = 'center';
+  ctx.fillText('118.70', rx, ry + 22);
+  ctx.fillStyle = '#8fa3b8';
+  ctx.font = `600 10px ${FONT}`;
+  ctx.fillText('TOWER · COM1', rx, ry + 40);
+  ctx.fillStyle = '#0d1117';
+  ctx.beginPath(); ctx.roundRect(rx - 62, ry + 60, 124, 52, 6); ctx.fill();
+  ctx.strokeStyle = '#39424e'; ctx.stroke();
+  const ring = world.targetRing();
+  const gpsDist = ring ? Math.round(Math.hypot(ring.x - p.x, ring.z - p.z)) : Math.round(Math.hypot(p.x, p.z + 330));
+  ctx.fillStyle = pal.accent;
+  ctx.font = `700 13px ${MONO}`;
+  ctx.fillText(ring ? `RING ${world.nextRing + 1} · ${gpsDist}m` : `RWY 36 · ${gpsDist}m`, rx, ry + 82);
+  ctx.fillStyle = '#8fa3b8';
+  ctx.font = `600 10px ${FONT}`;
+  ctx.fillText('GPS', rx, ry + 100);
+  // Panel screws and a warm backlight wash as the light fades.
+  ctx.fillStyle = '#39424e';
+  for (const [sx, sy] of [[26, top + 44], [W - 26, top + 44], [26, H - 22], [W - 26, H - 22]]) {
+    ctx.beginPath(); ctx.arc(sx, sy, 3.4, 0, Math.PI * 2); ctx.fill();
+  }
+  if ((pal.lights || 0) > 0.2) {
+    const glow = ctx.createRadialGradient(hx, hy, 40, hx, hy, 460);
+    glow.addColorStop(0, `rgba(255,190,110,${0.13 * pal.lights})`);
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, top, W, H - top);
+  }
+  // Windshield reflection: two soft diagonal streaks on the glass.
+  ctx.fillStyle = 'rgba(215,235,248,0.06)';
+  ctx.beginPath();
+  ctx.moveTo(W * 0.22, 0); ctx.lineTo(W * 0.34, 0); ctx.lineTo(W * 0.2, top); ctx.lineTo(W * 0.1, top);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(W * 0.62, 0); ctx.lineTo(W * 0.69, 0); ctx.lineTo(W * 0.57, top); ctx.lineTo(W * 0.51, top);
+  ctx.closePath(); ctx.fill();
 }
 
 function tape(ctx, x, y, h, value, step, label, fmt) {
@@ -1111,7 +1414,9 @@ function drawHud(ctx, world, cam, mode) {
     ctx.fillText(`GEAR ${p.gear ? 'DOWN' : 'UP'} · FLAPS ${p.flaps ? 'ON' : 'OFF'}`, 18, H - 34);
   }
 
-  // Minimap: runway, rings and the aircraft on a glass card, bottom right.
+  // Minimap: runway, rings and the aircraft on a glass card, bottom right
+  // (chase view only — the cockpit panel carries its own GPS readout).
+  if (mode === CAM_CHASE) {
   const mmSize = 148, mmX = W - mmSize - 16, mmY = H - mmSize - 52;
   ctx.fillStyle = 'rgba(10,16,24,0.55)';
   ctx.beginPath();
@@ -1144,6 +1449,7 @@ function drawHud(ctx, world, cam, mode) {
   ctx.font = `600 10px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.fillText('MAP', mmX + mmSize / 2, mmY + 14);
+  }
 
   // Score popup: floats up and fades after each ring.
   if (world.popup) {
@@ -1337,12 +1643,15 @@ function drawCrashed(ctx, world) {
 export function render(ctx, world, ui) {
   FOCAL = 610 - clamp((world.plane.speed - 58) / 40, 0, 1) * 64;
   const cam = makeCamera(world, ui.camera);
-  drawSky(ctx, world.course.palette, cam);
+  drawSky(ctx, world.course.palette, cam, world.fxTime || 0);
   drawTerrain(ctx, world, cam);
+  drawMist(ctx, world, cam);
   drawRoads(ctx, world, cam);
   drawRunway(ctx, world, cam);
+  drawAirport(ctx, world, cam);
   drawRings(ctx, world, cam);
   drawScenery(ctx, world, cam);
+  drawParticles(ctx, world, cam);
   if (ui.camera === CAM_CHASE) drawAircraft(ctx, world, ui.screen === SCREEN_PLAY || ui.screen === SCREEN_PAUSED ? 0 : 86);
   else drawCockpit(ctx, world);
   if (ui.screen === SCREEN_PLAY || ui.screen === SCREEN_PAUSED) drawHud(ctx, world, cam, ui.camera);

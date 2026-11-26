@@ -97,6 +97,13 @@ export class World {
     this.landingReport = null;
     this.popup = null; // { text, sub, at } score feedback the HUD floats up
     this.gust = 0;
+    // Visual effects state: dust, tyre smoke and wingtip vapour the
+    // renderer draws. fxTime always advances so effects settle even
+    // after the flight ends; fxSeed keeps them deterministic.
+    this.particles = [];
+    this.fxTime = 0;
+    this.fxSeed = 1;
+    this.touchdownAt = -10;
     // Scenery the renderer draws: clouds, trees and town blocks, seeded.
     const random = makeRandom(seed * 7919 + courseIndex * 131);
     this.clouds = [];
@@ -174,6 +181,45 @@ export class World {
     return { x: this.course.wind.x + gust, z: this.course.wind.z + gust * 0.4 };
   }
 
+  /** Deterministic 0..1 for effect jitter, so staged scenes repeat. */
+  fxRand() {
+    this.fxSeed = (this.fxSeed * 16807) % 2147483647;
+    return this.fxSeed / 2147483647;
+  }
+
+  emitParticle(kind, x, y, z, vx, vy, vz, life, size) {
+    if (this.particles.length > 260) this.particles.shift();
+    this.particles.push({ kind, x, y, z, vx, vy, vz, life, max: life, size });
+  }
+
+  updateParticles(dt) {
+    this.fxTime += dt;
+    for (const q of this.particles) {
+      q.life -= dt;
+      q.x += q.vx * dt;
+      q.y += q.vy * dt;
+      q.z += q.vz * dt;
+      q.vy += (q.kind === 'smoke' ? 0.7 : q.kind === 'dust' ? 0.25 : -0.05) * dt;
+      q.vx *= 1 - dt * 0.6;
+      q.vz *= 1 - dt * 0.6;
+    }
+    this.particles = this.particles.filter((q) => q.life > 0);
+  }
+
+  /** A burst of tyre smoke at the main gear, on touchdown. */
+  tyreSmoke(p, count = 22) {
+    this.touchdownAt = this.fxTime;
+    const rx = Math.cos(p.heading), rz = Math.sin(p.heading);
+    for (let i = 0; i < count; i += 1) {
+      const side = i % 2 === 0 ? -3.4 : 3.4;
+      this.emitParticle('smoke',
+        p.x + rx * side, p.y + 0.5, p.z + rz * side,
+        -Math.sin(p.heading) * 3 + (this.fxRand() - 0.5) * 3, 1.2 + this.fxRand() * 1.6,
+        Math.cos(p.heading) * 3 + (this.fxRand() - 0.5) * 3,
+        0.9 + this.fxRand() * 0.9, 2 + this.fxRand() * 2.4);
+    }
+  }
+
   /**
    * Advance the flight by one fixed step. `input` carries pitch, roll and
    * rudder in [-1, 1], a throttle delta, and toggles already applied.
@@ -181,6 +227,7 @@ export class World {
    */
   step(dt, input) {
     const p = this.plane;
+    this.updateParticles(dt);
     if (p.crashed || this.finished) return 0;
     let events = 0;
     this.time += dt;
@@ -226,6 +273,14 @@ export class World {
       p.z += -Math.cos(p.heading) * p.speed * dt;
       p.y = groundY;
       p.vy = 0;
+      // Dust kicked up behind the wheels on the roll.
+      if (p.speed > 9 && Math.floor(this.fxTime * 60) % 2 === 0) {
+        this.emitParticle('dust',
+          p.x - Math.sin(p.heading) * 5 + (this.fxRand() - 0.5) * 3, groundY + 0.6,
+          p.z + Math.cos(p.heading) * 5 + (this.fxRand() - 0.5) * 3,
+          -Math.sin(p.heading) * 2, 1 + this.fxRand(), Math.cos(p.heading) * 2,
+          0.7 + this.fxRand() * 0.6, 1.6 + this.fxRand() * 1.6);
+      }
       if (p.speed >= PLANE.rotateSpeed && p.pitch > 0.06) {
         p.airborne = true;
         p.y = groundY + 1.6; // clear the strip so the contact check does not re-trigger
@@ -250,6 +305,14 @@ export class World {
     p.x += (Math.sin(p.heading) * p.speed * Math.cos(p.pitch) + wind.x) * dt;
     p.z += (-Math.cos(p.heading) * p.speed * Math.cos(p.pitch) + wind.z) * dt;
     p.y += vy * dt;
+    // Wingtip vapour trails in a hard, fast bank.
+    if (Math.abs(p.roll) > 0.5 && p.speed > 48) {
+      const rx = Math.cos(p.heading), rz = Math.sin(p.heading);
+      for (const side of [-7.6, 7.6]) {
+        this.emitParticle('vapour', p.x + rx * side, p.y + 0.4, p.z + rz * side,
+          -Math.sin(p.heading) * 4, -0.4, Math.cos(p.heading) * 4, 1.3, 1.5);
+      }
+    }
 
     // Ring pass: the segment prev->now crosses the ring's plane inside it.
     const ring = this.targetRing();
@@ -277,6 +340,7 @@ export class World {
       }
       if (onRunway(p.x, p.z) && p.gear && p.vy > -6 && p.speed < 46) {
         // A touch-and-go before the course is done: roll and climb away.
+        this.tyreSmoke(p, 12);
         p.airborne = false;
         p.pitch = 0;
         p.roll = 0;
@@ -301,6 +365,7 @@ export class World {
   }
 
   land(p) {
+    this.tyreSmoke(p, 26);
     const sink = Math.abs(p.vy);
     const offset = centrelineOffset(p.x);
     const speedPenalty = Math.max(0, p.speed - 34) * 4;

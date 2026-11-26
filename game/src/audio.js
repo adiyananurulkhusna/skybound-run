@@ -31,11 +31,32 @@ export class Sound {
     engineGain.gain.value = 0;
     engineOsc.connect(engineFilter).connect(engineGain).connect(this.ctx.destination);
     engineOsc.start();
-    this.engine = { osc: engineOsc, gain: engineGain, filter: engineFilter };
+    // A detuned square underneath gives the engine its putter, and a
+    // band-passed noise layer adds propeller wash that grows with throttle.
+    const subOsc = this.ctx.createOscillator();
+    subOsc.type = 'square';
+    subOsc.frequency.value = 28;
+    const subGain = this.ctx.createGain();
+    subGain.gain.value = 0;
+    subOsc.connect(subGain).connect(this.ctx.destination);
+    subOsc.start();
 
     const noise = this.ctx.createBuffer(1, this.ctx.sampleRate, this.ctx.sampleRate);
     const data = noise.getChannelData(0);
     for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+    const propSrc = this.ctx.createBufferSource();
+    propSrc.buffer = noise;
+    propSrc.loop = true;
+    const propFilter = this.ctx.createBiquadFilter();
+    propFilter.type = 'bandpass';
+    propFilter.frequency.value = 340;
+    propFilter.Q.value = 0.8;
+    const propGain = this.ctx.createGain();
+    propGain.gain.value = 0;
+    propSrc.connect(propFilter).connect(propGain).connect(this.ctx.destination);
+    propSrc.start();
+    this.engine = { osc: engineOsc, gain: engineGain, filter: engineFilter, sub: subOsc, subGain, propGain, propFilter };
+
     const windSrc = this.ctx.createBufferSource();
     windSrc.buffer = noise;
     windSrc.loop = true;
@@ -46,7 +67,7 @@ export class Sound {
     windGain.gain.value = 0;
     windSrc.connect(windFilter).connect(windGain).connect(this.ctx.destination);
     windSrc.start();
-    this.wind = { gain: windGain };
+    this.wind = { gain: windGain, filter: windFilter };
   }
 
   /** Follow the flight each frame: engine by throttle, wind by speed. */
@@ -57,10 +78,16 @@ export class Sound {
     this.engine.osc.frequency.setTargetAtTime(48 + plane.throttle * 95 + plane.speed * 0.35, t, 0.08);
     this.engine.filter.frequency.setTargetAtTime(300 + plane.throttle * 700, t, 0.1);
     this.engine.gain.gain.setTargetAtTime(on ? 0.028 + plane.throttle * 0.05 : 0, t, 0.1);
+    this.engine.sub.frequency.setTargetAtTime(24 + plane.throttle * 47, t, 0.08);
+    this.engine.subGain.gain.setTargetAtTime(on ? 0.012 + plane.throttle * 0.02 : 0, t, 0.1);
+    this.engine.propFilter.frequency.setTargetAtTime(240 + plane.throttle * 520, t, 0.1);
+    this.engine.propGain.gain.setTargetAtTime(on ? plane.throttle * 0.035 : 0, t, 0.1);
+    this.wind.filter.frequency.setTargetAtTime(500 + plane.speed * 9, t, 0.15);
     this.wind.gain.gain.setTargetAtTime(on ? Math.min(0.09, plane.speed / 900) : 0, t, 0.15);
     if (on && plane.stalled && t - this.lastWarning > 0.9) {
       this.lastWarning = t;
-      this.tone(880, 0.12, 'square', 0.05);
+      this.tone(880, 0.1, 'square', 0.045);
+      this.tone(659, 0.12, 'square', 0.045, 0.11);
     }
   }
 
@@ -79,8 +106,10 @@ export class Sound {
   }
 
   ring() {
-    this.tone(740, 0.16, 'sine', 0.09);
-    this.tone(1108, 0.22, 'sine', 0.07, 0.07);
+    this.tone(660, 0.18, 'sine', 0.09);
+    this.tone(990, 0.24, 'sine', 0.07, 0.06);
+    this.tone(1320, 0.3, 'triangle', 0.05, 0.12);
+    this.tone(1980, 0.36, 'sine', 0.025, 0.18);
   }
 
   touchdown() {

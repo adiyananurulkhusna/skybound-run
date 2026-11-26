@@ -35,29 +35,27 @@ function flySeconds(world, seconds, target, targetSpeed) {
  */
 export function stageShot(name, world) {
   if (name === 'play') {
-    // Mid-course over the lake at noon: three rings banked, the fourth
-    // ahead with the lighthouse and sailboats below.
-    world.reset(world.seed, 1);
+    // Dawn Valley: banking hard toward ring 2 with the village below the
+    // left wing, the river shining to the east and mist in the valley.
+    world.reset(world.seed, 0);
     const p = world.plane;
-    p.x = 1812; p.y = 228; p.z = -3992;
-    p.heading = 0.43; p.pitch = 0.02; p.roll = 0.42;
-    p.speed = 66; p.throttle = 0.78; p.airborne = true; p.gear = false;
+    p.x = -275; p.y = 205; p.z = -1980;
+    p.heading = -0.34; p.pitch = 0.03; p.roll = -0.72;
+    p.speed = 64; p.throttle = 0.8; p.airborne = true; p.gear = false;
     world.started = true;
     world.rings[0].passed = true;
-    world.rings[1].passed = true;
-    world.rings[2].passed = true;
-    world.nextRing = 3;
-    world.score = 350;
-    world.ringScore = 350;
-    world.time = 74;
-    world.popup = { text: '+150', sub: 'PERFECT', at: 73.55 };
-    flySeconds(world, 0.45, world.rings[3], 66);
+    world.nextRing = 1;
+    world.score = 150;
+    world.ringScore = 150;
+    world.time = 46;
+    world.popup = { text: '+150', sub: 'PERFECT', at: 45.55 };
+    flySeconds(world, 0.5, world.rings[1], 64);
     return { screen: SCREEN_PLAY, camera: CAM_CHASE };
   }
   if (name === 'cockpit') {
-    // Final approach to runway 36 from the cockpit, instruments lit, the
-    // strip centred ahead and the town off the right wing.
-    world.reset(world.seed, 0);
+    // Dusk Canyon final approach: lit panel, runway lights ahead and the
+    // village lamps coming on below.
+    world.reset(world.seed, 2);
     const p = world.plane;
     p.x = 10; p.y = 66; p.z = 640;
     p.heading = 0.008; p.pitch = -0.03; p.roll = 0.015;
@@ -65,26 +63,29 @@ export function stageShot(name, world) {
     world.started = true;
     for (const ring of world.rings) ring.passed = true;
     world.nextRing = world.rings.length;
-    world.score = 600;
-    world.ringScore = 600;
-    world.time = 141;
+    world.score = 1400;
+    world.ringScore = 1400;
+    world.time = 196;
     flySeconds(world, 1.2, { x: 0, y: 40, z: -320 }, 40);
     return { screen: SCREEN_PLAY, camera: CAM_COCKPIT };
   }
   if (name === 'end') {
-    // A completed flight: every ring flown and a smooth touchdown banked.
+    // A completed flight: every ring flown clean and a smooth touchdown
+    // banked fast enough for the top grade.
     world.reset(world.seed, 0);
     const p = world.plane;
     for (const ring of world.rings) ring.passed = true;
     world.nextRing = world.rings.length;
-    world.score = 800;
-    world.ringScore = 800;
-    world.time = 105;
+    world.score = 900;
+    world.ringScore = 900;
+    world.time = 80;
     p.x = 3; p.y = 12; p.z = -60;
     p.heading = 0; p.pitch = 0; p.roll = 0;
     p.speed = 33; p.throttle = 0.12; p.vy = -1.2;
     p.airborne = false; p.gear = true; p.flaps = true;
     world.land(p);
+    // Let the tyre smoke billow and thin for half a second of effect time.
+    for (let i = 0; i < 30; i += 1) world.updateParticles(STEP);
     return { screen: SCREEN_RESULTS, camera: CAM_CHASE };
   }
   // start: the title over the dusk runway, aircraft ready at the threshold.

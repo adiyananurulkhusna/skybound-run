@@ -66,6 +66,7 @@ export const COURSES = [
       skyTop: '#2e4a7a', skyMid: '#7fa8c9', skyLow: '#f6c177', sun: '#ffd9a0',
       fog: '#c8b299', grass: '#5d8a4c', grassHigh: '#7d9b57', rock: '#8a7a68',
       water: '#3d6e8f', panel: '#1c2431', accent: '#ffb454',
+      fogScale: 0.72, mist: 0.55, lights: 0.35, // thin morning mist, lamps just waking
     },
   },
   {
@@ -87,6 +88,7 @@ export const COURSES = [
       skyTop: '#2f6fb4', skyMid: '#79b5dd', skyLow: '#dceef7', sun: '#fff3c4',
       fog: '#bcd6e4', grass: '#4f9455', grassHigh: '#86b364', rock: '#97907f',
       water: '#2f7fa8', panel: '#16222e', accent: '#ffd166',
+      fogScale: 1, mist: 0, lights: 0.08, // clear midday air
     },
   },
   {
@@ -110,6 +112,7 @@ export const COURSES = [
       skyTop: '#3b3561', skyMid: '#8a5a7d', skyLow: '#f0915c', sun: '#ffb37a',
       fog: '#a97e72', grass: '#5c7a45', grassHigh: '#8a8a52', rock: '#9c6b52',
       water: '#4a5f83', panel: '#201a2e', accent: '#ff9e5e',
+      fogScale: 0.9, mist: 0.18, lights: 1, // dusk: village and airfield lights on
     },
   },
 ];
