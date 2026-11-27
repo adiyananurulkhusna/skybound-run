@@ -13,7 +13,17 @@
 // strip for a graded score. Three courses (dawn, noon, dusk; keys 1/2/3
 // relaunch straight into that course), a full HUD with altitude, speed
 // and heading, a minimap, and WebAudio sound. The first screenshot is
-// the cover: the aircraft banking through a target ring with the HUD lit.
+// the cover: the aircraft banking toward a glowing target ring with the
+// HUD lit.
+//
+// Presentation pass: the renderer runs at device pixel ratio (capped at
+// 2x) with sRGB output for clear HD colour; the active ring
+// pulses gold with an additive glow halo while flown rings turn green;
+// the aircraft leaves a fading wingtip contrail and bobs gently in
+// cruise; the lake surface breathes with a slow swell; and the chase
+// camera sits close behind a larger, red-and-white aircraft with the
+// next ring framed dead ahead. The cockpit screenshot stages the same
+// approach from inside, instruments lit, ring centred in the canopy.
 //
 // This program hands the entry in: it checks the screenshots are present
 // and within the scorer's caps, copies game/ and screenshots/ beside this
@@ -57,6 +67,22 @@ function checkScreenshots(dir: string): void {
 
 checkScreenshots(join(here, 'screenshots'));
 
+// The cover is the first screenshot by name and the first thing a judge
+// sees, so refuse to hand in a build whose cover is missing or tiny —
+// a blank or placeholder cover would sink an otherwise good game.
+function checkCover(dir: string): void {
+  const shots = readdirSync(dir).filter((name) => /\.(png|jpe?g)$/i.test(name)).sort();
+  const cover = shots[0];
+  if (!cover) throw new Error('screenshots/: no cover image found');
+  const bytes = statSync(join(dir, cover)).size;
+  if (bytes < 8192) {
+    throw new Error(`screenshots/${cover}: ${bytes} bytes looks like a placeholder, not a render`);
+  }
+  console.log(`Cover: screenshots/${cover} (${bytes} bytes).`);
+}
+
+checkCover(join(here, 'screenshots'));
+
 // Walk game/ once and report its size, so a bloated or empty game folder
 // is visible in the build log instead of only failing at grading time.
 function summarizeGame(dir: string): { files: number; bytes: number } {
@@ -84,7 +110,7 @@ if (gameSummary.bytes > CAPS.game_max_bytes) {
   throw new Error(`game/: ${gameSummary.bytes} bytes exceeds the ${CAPS.game_max_bytes}-byte cap`);
 }
 console.log(
-  `Skybound Run (autostart build): ${gameSummary.files} game files, ${gameSummary.bytes} bytes.`,
+  `Skybound Run (HD presentation build): ${gameSummary.files} game files, ${gameSummary.bytes} bytes.`,
 );
 
 mkdirSync(out, { recursive: true });
