@@ -268,6 +268,11 @@ window.addEventListener("keydown", function (e) {
     if (e.code === "Digit3") { courseIdx = 2; resetState(); }
     if (e.code === "Enter") { S.mode = "fly"; document.getElementById("start").style.display = "none"; }
   }
+  if (S.mode === "fly") {
+    if (e.code === "Digit1") { courseIdx = 0; resetState(); launchIntoFlight(); }
+    if (e.code === "Digit2") { courseIdx = 1; resetState(); launchIntoFlight(); }
+    if (e.code === "Digit3") { courseIdx = 2; resetState(); launchIntoFlight(); }
+  }
   if (e.code === "KeyC" && S.mode === "fly") {
     S.cam = S.cam === "chase" ? "cockpit" : "chase";
     document.getElementById("panel").style.display = S.cam === "cockpit" ? "block" : "none";
@@ -275,7 +280,7 @@ window.addEventListener("keydown", function (e) {
   if (e.code === "KeyF") S.flaps = !S.flaps;
   if (e.code === "KeyG") S.gear = !S.gear;
   if (e.code === "KeyP") S.paused = !S.paused;
-  if (e.code === "KeyR") resetState();
+  if (e.code === "KeyR") { resetState(); launchIntoFlight(); }
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].indexOf(e.code) >= 0) e.preventDefault();
 });
 window.addEventListener("keyup", function (e) { keys[e.code] = false; });
@@ -470,6 +475,31 @@ function stageShot() {
   }
 }
 stageShot();
+
+// ---------- autostart: open already flying ----------
+// The page must show flight on the very first frame — no click, no Enter.
+// We drop the aircraft onto final approach to ring 1 at cruise speed with
+// the chase camera already framed behind it and the HUD lit, so whoever
+// opens the page is immediately in the air heading for the first ring.
+function launchIntoFlight() {
+  S.mode = "fly";
+  document.getElementById("start").style.display = "none";
+  document.getElementById("end").style.display = "none";
+  S.airborne = true; S.gear = false; S.flaps = false; S.brake = false;
+  S.throttle = 0.68; S.speed = 41; S.vy = 0; S.pitch = 0; S.roll = 0;
+  S.cam = "chase"; S.paused = false;
+  var rp = rings[0].pos;
+  S.pos.set(rp.x + 24, rp.y, rp.z + 152);
+  S.heading = Math.atan2(rp.x - S.pos.x, -(rp.z - S.pos.z));
+  S.msg = "FLY THROUGH THE RINGS"; S.msgT = 3;
+  camPos.set(S.pos.x - Math.sin(S.heading) * 21, S.pos.y + 7, S.pos.z + Math.cos(S.heading) * 21);
+  plane.position.copy(S.pos);
+  plane.rotation.set(S.pitch, -S.heading, -S.roll, "YXZ");
+  camera.position.copy(camPos);
+  camera.lookAt(S.pos.x, S.pos.y + 2.5, S.pos.z);
+  updateHUD();
+}
+if (!shot) launchIntoFlight();
 
 // ---------- main loop ----------
 var clock = new THREE.Clock();

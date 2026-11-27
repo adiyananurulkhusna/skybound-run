@@ -3,14 +3,17 @@
 // The game lives in this directory's game/ folder: plain static files a
 // desktop browser loads offline (game/index.html plus its ES modules and a
 // vendored three.js, no network request). It is an original 3D flight
-// game: take off from runway 36, fly a course of glowing target rings over
-// real 3D terrain — rolling hills with about 1,600 trees, a village and a
-// lake — in chase or cockpit view (the cockpit has a lit instrument panel
-// with airspeed, altitude, attitude, heading and RPM gauges), then land
-// back on the strip for a graded score. Three courses (dawn, noon, dusk),
-// a full HUD with altitude, speed and heading, a minimap, and WebAudio
-// sound. The first screenshot is the cover: the aircraft banking through a
-// target ring with the HUD lit.
+// game: the page opens already flying — the aircraft starts airborne at
+// cruise speed on final approach to the first ring, chase camera framed
+// behind it and the HUD lit, so the first frame is flight, not a title
+// screen. Fly the course of glowing target rings over real 3D terrain —
+// rolling hills with about 1,600 trees, a village and a lake — in chase
+// or cockpit view (the cockpit has a lit instrument panel with airspeed,
+// altitude, attitude, heading and RPM gauges), then land back on the
+// strip for a graded score. Three courses (dawn, noon, dusk; keys 1/2/3
+// relaunch straight into that course), a full HUD with altitude, speed
+// and heading, a minimap, and WebAudio sound. The first screenshot is
+// the cover: the aircraft banking through a target ring with the HUD lit.
 //
 // This program hands the entry in: it checks the screenshots are present
 // and within the scorer's caps, copies game/ and screenshots/ beside this
@@ -53,6 +56,36 @@ function checkScreenshots(dir: string): void {
 }
 
 checkScreenshots(join(here, 'screenshots'));
+
+// Walk game/ once and report its size, so a bloated or empty game folder
+// is visible in the build log instead of only failing at grading time.
+function summarizeGame(dir: string): { files: number; bytes: number } {
+  let files = 0;
+  let bytes = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const sub = summarizeGame(path);
+      files += sub.files;
+      bytes += sub.bytes;
+    } else {
+      files += 1;
+      bytes += statSync(path).size;
+    }
+  }
+  return { files, bytes };
+}
+
+const gameSummary = summarizeGame(join(here, 'game'));
+if (gameSummary.files === 0) {
+  throw new Error('game/: no files found — nothing to hand in');
+}
+if (gameSummary.bytes > CAPS.game_max_bytes) {
+  throw new Error(`game/: ${gameSummary.bytes} bytes exceeds the ${CAPS.game_max_bytes}-byte cap`);
+}
+console.log(
+  `Skybound Run (autostart build): ${gameSummary.files} game files, ${gameSummary.bytes} bytes.`,
+);
 
 mkdirSync(out, { recursive: true });
 cpSync(join(here, 'game'), join(out, 'game'), { recursive: true });

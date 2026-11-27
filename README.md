@@ -4,17 +4,17 @@
 [![rank](https://make.fun/badge/best-flight-game-20261126-0057/adiyananurulkhusna/skybound-run/rank.svg)](https://make.fun/bounty/best-flight-game-20261126-0057/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=best-flight-game-20261126-0057)
 [![reward](https://make.fun/badge/best-flight-game-20261126-0057/adiyananurulkhusna/skybound-run/reward.svg)](https://make.fun/bounty/best-flight-game-20261126-0057?utm_source=github&utm_medium=readme&utm_campaign=best-flight-game-20261126-0057)
 
-Skybound Run is an original 3D flight game for the desktop browser: take off from runway 36, fly a course of glowing target rings over a sun-lit 3D landscape of rolling hills, pine forests, farmland patchwork, a village and a lake, then land back on the strip for a graded score. Real-time WebGL rendering with soft shadows, atmospheric fog, drifting clouds and a detailed propeller plane with spinning prop and navigation lights. Chase and cockpit views — the cockpit shows a lit instrument panel (airspeed, altimeter, attitude indicator, heading, RPM) — plus a HUD with altitude, speed, heading, ring progress, a minimap and score popups with a PERFECT bonus for threading the middle of a ring. Three courses at dawn, noon and dusk with crosswinds. Built with Three.js vendored locally — no network requests, plays offline from its own files; sound is synthesised with WebAudio.
+Skybound Run is an original flight game for the desktop browser: the page opens already flying, airborne at cruise speed on final approach to the first ring with the HUD lit, then fly a course of target rings over rolling hills, a winding river, a lake with sailboats and a lighthouse, farmland, villages, wind turbines and a snowy mountain ridge, then land back on the strip for a graded score. Chase and cockpit views with a lit instrument panel (airspeed, altitude, vertical speed, heading, moving yoke), a full HUD showing altitude, speed, heading, wind, height above ground, a minimap and ring progress, score popups with a PERFECT bonus for threading the middle of a ring, stall and sink-rate warnings, speed streaks at high velocity, three courses at dawn, noon and dusk with crosswinds, and a landing report that scores your touchdown sink rate, centreline and speed. Rendered at 1920×1080 with sun-lit terrain shading, atmospheric haze, cloud shadows and sun glint on the water. Plain canvas and vanilla JavaScript — no libraries, no network requests, plays offline from its own files; all sound is synthesised with WebAudio. Best scores save to localStorage.
 
 ## Features
 
 - Three courses: Dawn Valley (6 rings, calm), Coastal Noon (8 rings, crosswind), Dusk Canyon (10 rings, gusty)
-- True 3D world: heightfield terrain with altitude colours, water, 1,600 instanced pine trees, village houses, hangars and a control tower
-- Chase and cockpit cameras; lit cockpit gauges with moving needles and an attitude indicator
-- HUD: heading, speed and altitude tapes, ring distance, minimap with live plane and ring markers
-- Scoring: 100 per ring, +50 PERFECT bonus through the centre, graded landing (S/A/B) for a smooth touchdown on runway 36
-- Stall behaviour, flaps, gear, brakes, mouse steering after a click
-- Synthesised engine and ring sounds (WebAudio)
+- Chase and cockpit cameras with a smoothed, trailing chase view
+- Lit cockpit: artificial horizon, airspeed, altimeter, vertical speed, heading, throttle and warning lamps
+- HUD: compass ribbon, speed/altitude tapes, flight-path marker, ring pips, minimap, wind and height above ground
+- Scoring: 100 per ring, +50 PERFECT bonus through the centre, graded landing (sink rate, centreline, speed) plus a time bonus, letter grades S–D
+- Living scenery: river, lake, sailboats, lighthouse with rotating beam, wind turbines, villages, roads, hot-air balloon, drifting clouds with ground shadows
+- Synthesised engine, ring, touchdown and crash sounds (WebAudio, M to mute)
 
 ## Controls
 
@@ -32,7 +32,7 @@ Skybound Run is an original 3D flight game for the desktop browser: take off fro
 | P | Pause |
 | M | Mute |
 | R | Restart |
-| 1–3, Enter | Choose course, start |
+| 1–3 | Switch course (relaunches straight into flight) |
 
 ## Run it
 
