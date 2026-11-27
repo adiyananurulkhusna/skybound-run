@@ -1,12 +1,16 @@
 // Skybound Run — a best-flight-game entry (Node 22, standard library only).
 //
 // The game lives in this directory's game/ folder: plain static files a
-// desktop browser loads offline (game/index.html plus its ES modules, no
-// library and no network request). It is an original flight game: take off
-// from runway 36, fly a course of target rings over hills, a lake and a
-// mountain ridge in chase or cockpit view, then land back on the strip for
-// a graded score. Three courses (dawn, noon, dusk), a full HUD with
-// altitude, speed and heading, and WebAudio sound.
+// desktop browser loads offline (game/index.html plus its ES modules and a
+// vendored three.js, no network request). It is an original 3D flight
+// game: take off from runway 36, fly a course of glowing target rings over
+// real 3D terrain — rolling hills with about 1,600 trees, a village and a
+// lake — in chase or cockpit view (the cockpit has a lit instrument panel
+// with airspeed, altitude, attitude, heading and RPM gauges), then land
+// back on the strip for a graded score. Three courses (dawn, noon, dusk),
+// a full HUD with altitude, speed and heading, a minimap, and WebAudio
+// sound. The first screenshot is the cover: the aircraft banking through a
+// target ring with the HUD lit.
 //
 // This program hands the entry in: it checks the screenshots are present
 // and within the scorer's caps, copies game/ and screenshots/ beside this
